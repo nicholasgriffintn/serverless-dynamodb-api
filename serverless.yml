@@ -1,0 +1,95 @@
+service: gatsby-database-service
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  stage: dev
+  region: eu-west-1
+  apiName: sf-serverless-api
+  environment:
+    ADVERTS_TABLE: ${self:service}-${opt:stage, self:provider.stage}
+    ADVERTS_UPDATED_TABLE: "adverts-updated-${opt:stage, self:provider.stage}"
+  apiKeys:
+    - testKey
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:DeleteItem
+      Resource: "*"
+
+#serverless deploy --stage local
+#serverless deploy --stage production
+
+plugins:
+  - serverless-sentry
+  - serverless-localstack
+custom:
+  sentry:
+    dsn: https://8629d296f05a4b4ebd2edb9b260afd4e@sentry.io/1363332
+  localstack:
+    host: http://localhost
+    endpoints:
+      S3: http://localhost:4572
+      DynamoDB: http://localhost:4570
+      CloudFormation: http://localhost:4581
+      Elasticsearch: http://localhost:4571
+      ES: http://localhost:4578
+      SNS: http://localhost:4575
+      SQS: http://localhost:4576
+      Lambda: http://localhost:4574
+      Kinesis: http://localhost:4568
+
+resources:
+  Resources:
+    AdvertsDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: "id"
+            AttributeType: "S"   
+        KeySchema:
+          -
+            AttributeName: "id"
+            KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        StreamSpecification:
+          StreamViewType: "NEW_AND_OLD_IMAGES"
+        TableName: ${self:provider.environment.ADVERTS_TABLE}
+
+functions:
+  advertSubmission:
+    handler: api/advert.submit
+    memorySize: 128
+    description: Submit an advert
+    events:
+      - http: 
+          path: adverts
+          method: post
+  listAdverts:
+    handler: api/advert.list
+    memorySize: 128
+    description: List all Adverts
+    events:
+      - http: 
+          path: adverts
+          method: get  
+  advertDetails:
+    handler: api/advert.get
+    events:
+      - http:
+          path: adverts/{id}
+          method: get
+  removeAdvert:
+    handler: api/advert.delete
+    events:
+      - http:
+          path: adverts/{id}
+          method: delete
