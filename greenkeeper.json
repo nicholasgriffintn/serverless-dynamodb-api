@@ -1,0 +1,9 @@
+{
+  "groups": {
+    "default": {
+      "packages": [
+        "store_jobs_function/package.json"
+      ]
+    }
+  }
+}
